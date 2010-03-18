@@ -205,6 +205,7 @@ object SpamPlan {
 
     val (hypothesis,dof_2) = bayesianClassifier_(db, words, max, prior)
 
+    //find p value for null hypothesis using inverse chi-square
     val h = hypothesis.iterator.map { tmp =>
         val clazz = tmp._1
         val p     = tmp._2
@@ -220,18 +221,8 @@ object SpamPlan {
     }
 
     val m = new scala.collection.mutable.HashMap[Classification, Double]
-    h.foreach { tmp =>
-      val clazz = tmp._1
-      val p     = tmp._2
-
-      S.foreach{ other =>
-        if (clazz != other) {
-          m += other -> (1.0 - p + m.getOrElse(other, 0.0)) 
-        }
-      }
-    }
-
-    Distribution[Classification](m)
+    h.foreach { tmp => m += tmp }
+    m
   }
 
   def run = {
