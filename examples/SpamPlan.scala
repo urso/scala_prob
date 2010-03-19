@@ -1,4 +1,100 @@
 
+/*
+ * Bayesian Spam filter example. 
+ * We try to find the probability of a message it's classification being spam
+ * or ham using a naive bayesian filter and a second filter using fisher's
+ * methods to analyse the plausibility of the filter its result.
+ *
+ * In essence the bayesian filter tries to find the probability for the message
+ * being spam using the message its features and previously seen messages.
+ *
+ * Suppose we have the random variables:
+ * S = {:Spam, :Ham}
+ * Document = Set of words/features = {Wi ... Wn}
+ * Wi = word Wi present or not present {true, false}
+ *
+ * then
+ *
+ * P(S|Document) = P(S|W1) * P(S|W2) * ... * P(S|Wn)
+ * 
+ * meaning we assume all feature/words to be statistically independent (hence
+ * naive bayesian filter).
+ *
+ * Finding words in old message and their spam/ham count we can drive the
+ * filter.
+ *
+ * Next let's find the probability for spam given a word P(S|Wi):
+ *
+ *            P(Wi|S) * P(S)
+ * P(S|Wi) = ---------------
+ *                P(Wi)
+ *
+ * But to minimize computational effort we precompute some a classifier for each
+ * word assuming a uniform prior distrubition P(S) and put in the true prior
+ * later. So we can store the classifiers direclty in our database instead of
+ * recomputing them over and over again.
+ *
+ * P(S|Document) = < P(S|W1) * P(S|W2) * ... >
+ *            = < P(W1|S) * prior * P(W2|S) * prior * ... >
+ *
+ * here < P(...) > stands for "alpha * P(...)" and expresses normalization which
+ * is done automatically by our library. Thus
+ *
+ *             P(Wi|S) * P(S)
+ *  P(S|Wi) = ---------------- = < P(Wi|S) * P(S) >
+ *                 P(Wi)
+ *
+ * We want to explain how the classifiers are precomputed and how these
+ * precomputed classifiers are used to do the classification now:
+ * 
+ * First let's precompute our classifiers:
+ *
+ * Suppose P_uni is uniform distribution for spam/ham, thus P_uni(spam) = 0.5
+ * and P_uni(ham) = 0.5. Then
+ * 
+ *                  P(Wi | S) * P_uni(S)             P(Wi | S) * P_uni(S)
+ *  P_uni(S | Wi) = --------------------  =  ------------------------------------
+ *                       P(Wi)               Sum(s={spam,ham}) P(Wi|s) * P_uni(s)
+ * 
+ *                = < P(Wi|S) * P_uni(S) >
+ * 
+ * now Suppose the real prior is given, thus with new prior:
+ *
+ * P_prior(S|Wi) = < P(Wi|S) * P_prior(S) >
+ * 
+ *                 P(Wi|S) * P_prior(S)     P_uni(S|Wi) * P_prior(S)
+ *               = --------------------  =  ------------------------
+ *                       P(Wi)                      P_uni(S)
+ * 
+ *               = < P_uni(S|Wi) * P_prior(S) >
+ *
+ *               = P(S|Wi)
+ * 
+ * P(S|Document) = < P(S|W1) * P(S|W2) * ... >
+ *               = < P(W1|S) * P_prior(S) > * < P(W2|S) * P_prior(S) > * ...
+ *               = < P_uni(S|W1) * P_prior(S) > * < P_uni(S|W2) * P_prior(S) > * ...
+ *
+ * Using these, our classifiers to store in the database are P_uni(S|Wi) for
+ * each word found during learning. So when learning from new message not all
+ * classifiers need to be recomputed. Alternatively one may want to store
+ * P_prior(S|Wi) in the database, but when learning new messages all classifiers
+ * need to be updated then. One may even assume the prior to alway uniformly
+ * distributed. In that case P(S|Document) becomes
+ * P(S|Document) = < P_uni(S|W1) * P_uni(S|W2) ... >
+ *
+ * Instead of using all classifiers for all words found only a subset is used.
+ * This subset of classifiers to use is found by scoring the classifiers and
+ * using the classifiers with highest scores for the words found in the
+ * document.
+ *
+ * Scoring is done by computing the 'quadratic distance' of a classifier to the uniform
+ * distribution:
+ * score = ( 0.5 - P_uni(S=spam|Wi) )^2 + ( 0.5 - P_uni(S=ham|Wi))^2
+ *
+ * Furthermore if a classifier assumes P_uni(S=spam|Wi) = 0 or P_uni(S=ham|Wi) = 0
+ * the probability will be adjusted to 0.01.
+ *
+ */
 object SpamPlan {
   import probability._
   import probability.EmbeddedProbability._
@@ -11,6 +107,8 @@ object SpamPlan {
 
   private val uniformClasses : Distribution[Classification] = prob { uniform(S) }
 
+  // trait every spam database must implement.
+  // Will additionally mix in functions for computing probabilities
   trait SpamFeaturesDB {
     // these form a beta distribution
     def corpusSize : Int = spamCount + hamCount
@@ -67,7 +165,6 @@ object SpamPlan {
     }
 
   }
-
 
   object SpamTestDB extends SpamFeaturesDB {
     def hamCount = 103
@@ -128,42 +225,6 @@ object SpamPlan {
             iterator.take(max)
   }
 
-  /*
-   * P(S|Words) = < P(S|W1) * P(S|W2) * ... >
-   *            = < P(W1|S) * prior > * < P(W2|S) * prior> * ...
-   *
-   * with:
-   *   P(S|Wi) = P(Wi|S) * prior
-   *             ---------------
-   *                  P(Wi)
-   *
-   * but classifiers already with uniform prior spam/ham distribution
-   * multiplied:
-   * Suppose P_uni is uniform distribution for spam/ham, thus P_uni(spam) = 0.5 and
-   * P_uni(ham) = 0.5
-   *
-   *                  P(Wi | S) * P_uni(S)               P(Wi | S) * P_uni(S)
-   *  P_uni(S | Wi) = --------------------    =  ------------------------------------
-   *                       P(Wi)                 Sum(s={spam,ham}) P(Wi|s) * P_uni(s)
-   *
-   *                = < P(Wi|S) * P_uni(S) >
-   *
-   * now Suppose prior is given, thus with new prior:
-   *
-   *                 P(Wi|S) * P_prior(S)     P_uni(S|Wi) * P_prior(S)
-   * P_prior(S|Wi) = --------------------  =  ------------------------
-   *                       P(Wi)                      P_uni(S)
-   *
-   *               = < P(Wi|S) * P_prior(S) >
-   *
-   *               = < P_uni(S|Wi) * P_prior(S) >
-   *
-   * => (since findClassifiers returns P_uni(S|Wi) for each word found in DB:
-   *
-   * P(S|Words) = < P(S|W1) * P(S|W2) * ... >
-   *            = < P(W1|S) * P_prior(S) > * < P(W2|S) * P_prior(S) > * ...
-   *            = < P_uni(S|W1) * P_prior(S) > * < P_uni(S|W2) * P_prior(S) > * ...
-   */
   def bayesianClassifier_(db:SpamFeaturesDB, 
                           words:Iterator[String], 
                           max:Int = 15,
@@ -190,6 +251,7 @@ object SpamPlan {
      classifiers.length)
   }
 
+  // use bayesian classifier and analyse hypothesis using fhisher's method
   def bayesianClassifier(db:SpamFeaturesDB, 
                           words:Iterator[String], 
                           max:Int = 15,
@@ -205,11 +267,30 @@ object SpamPlan {
 
     val (hypothesis,dof_2) = bayesianClassifier_(db, words, max, prior)
 
-    //find p value for null hypothesis using inverse chi-square
+    //find p-value for every possible hypothesis using fisher's method
     val h = hypothesis.iterator.map { tmp =>
         val clazz = tmp._1
         val p     = tmp._2
 
+        /*
+         * chi_square = -2.0 * sum(i) { log(p_i) } 
+         *            = -2.0 * log(p)
+         *
+         * copmute p-value by solving
+         *
+         * integral( x^(n-1) * exp(-x/2) / (gamma(n) * 2^n) , -2 log(p), inf, dx)
+         *
+         *   integral ( x^(n-1) * exp(-x/2), -2 log(p), inf, dx) 
+         * = ---------------------------------------------------
+         *                       gamma(n) * 2^n
+         *
+         * = p * Sum(i = 1 to n) { (-log(p))^(n - i) / (n - i)! }
+         *
+         * // so we can use foldLeft
+         * = p + p * Sum(i = 1 to n-1) { (-log(p))^(n - i) / (n - i)! }
+         *
+         * with n = dof_2
+         */
         import scala.math._
         val m = -log(p)
         var t = p
@@ -251,6 +332,5 @@ object SpamPlan {
   }
 
   def main(args:Array[String]) = run
-
 }
 
