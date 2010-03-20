@@ -3,7 +3,7 @@
  * Bayesian Spam filter example. 
  * We try to find the probability of a message it's classification being spam
  * or ham using a naive bayesian filter and a second filter using fisher's
- * methods to analyse the plausibility of the filter its result.
+ * methods to analyse the plausibility of the first filter its result.
  *
  * In essence the bayesian filter tries to find the probability for the message
  * being spam using the message its features and previously seen messages.
@@ -29,26 +29,24 @@
  * P(S|Wi) = ---------------
  *                P(Wi)
  *
- * But to minimize computational effort we precompute some a classifier for each
- * word assuming a uniform prior distrubition P(S) and put in the true prior
- * later. So we can store the classifiers direclty in our database instead of
- * recomputing them over and over again.
+ * But to minimize computational effort a classifier for each word assuming a
+ * uniform prior distribution P(S) is precomputed and the true prior is used
+ * later on inference. So we can store the classifiers directly in our database
+ * instead of recomputing them over and over again.
  *
  * P(S|Document) = < P(S|W1) * P(S|W2) * ... >
  *            = < P(W1|S) * prior * P(W2|S) * prior * ... >
  *
- * here < P(...) > stands for "alpha * P(...)" and expresses normalization which
- * is done automatically by our library. Thus
+ * here < P(...) > stands for "alpha * P(...)" and expresses normalization
+ * which is done automatically by our library. Thus
  *
  *             P(Wi|S) * P(S)
  *  P(S|Wi) = ---------------- = < P(Wi|S) * P(S) >
  *                 P(Wi)
  *
- * We want to explain how the classifiers are precomputed and how these
- * precomputed classifiers are used to do the classification now:
+ * First we need to explain how the classifiers are precomputed and how these
+ * precomputed classifiers are used to do the classification:
  * 
- * First let's precompute our classifiers:
- *
  * Suppose P_uni is uniform distribution for spam/ham, thus P_uni(spam) = 0.5
  * and P_uni(ham) = 0.5. Then
  * 
@@ -71,15 +69,15 @@
  *               = P(S|Wi)
  * 
  * P(S|Document) = < P(S|W1) * P(S|W2) * ... >
- *               = < P(W1|S) * P_prior(S) > * < P(W2|S) * P_prior(S) > * ...
- *               = < P_uni(S|W1) * P_prior(S) > * < P_uni(S|W2) * P_prior(S) > * ...
+ *               = < P(W1|S) * P_prior(S) * P(W2|S) * P_prior(S) * ... >
+ *               = < P_uni(S|W1) * P_prior(S) * P_uni(S|W2) * P_prior(S)  * ... >
  *
  * Using these, our classifiers to store in the database are P_uni(S|Wi) for
  * each word found during learning. So when learning from new message not all
  * classifiers need to be recomputed. Alternatively one may want to store
- * P_prior(S|Wi) in the database, but when learning new messages all classifiers
- * need to be updated then. One may even assume the prior to alway uniformly
- * distributed. In that case P(S|Document) becomes
+ * P_prior(S|Wi) in the database, but when learning from new messages all
+ * classifiers need to be updated then. One may even assume the prior to always
+ * be distributed uniform. In that case P(S|Document) becomes
  * P(S|Document) = < P_uni(S|W1) * P_uni(S|W2) ... >
  *
  * Instead of using all classifiers for all words found only a subset is used.
@@ -87,13 +85,13 @@
  * using the classifiers with highest scores for the words found in the
  * document.
  *
- * Scoring is done by computing the 'quadratic distance' of a classifier to the uniform
- * distribution:
+ * Scoring is done by computing the 'quadratic distance' of a classifier to the
+ * uniform distribution:
  * score = ( 0.5 - P_uni(S=spam|Wi) )^2 + ( 0.5 - P_uni(S=ham|Wi))^2
  *
  * Furthermore if a classifier assumes P_uni(S=spam|Wi) = 0 or P_uni(S=ham|Wi) = 0
  * the probability will be adjusted to 0.01.
- *
+ *    
  */
 object SpamPlan {
   import probability._
@@ -251,7 +249,7 @@ object SpamPlan {
      classifiers.length)
   }
 
-  // use bayesian classifier and analyse hypothesis using fhisher's method
+  // The naive bayesian classifier.
   def bayesianClassifier(db:SpamFeaturesDB, 
                           words:Iterator[String], 
                           max:Int = 15,
@@ -278,7 +276,9 @@ object SpamPlan {
          *
          * copmute p-value by solving
          *
-         * integral( x^(n-1) * exp(-x/2) / (gamma(n) * 2^n) , -2 log(p), inf, dx)
+         * p-value =
+         *
+         *   integral( x^(n-1) * exp(-x/2) / (gamma(n) * 2^n) , -2 log(p), inf, dx)
          *
          *   integral ( x^(n-1) * exp(-x/2), -2 log(p), inf, dx) 
          * = ---------------------------------------------------

@@ -3,12 +3,12 @@
  * Alarm example from "Artificial Intelligence - A Modern Approach" by Russel
  * and Norvig Page 493 cc.
  * 
- * Suppose you have a new fairly reliable burglar alarm at home but occasionally
- * it responds to minor earthquakes. You also have two neighbors John and Mary,
- * who have promised to call you at work when they hear the alarm. John always
- * calls when he hears the alarm, but sometimes confuses the telephone ringing
- * with the alarm and calls then, too. Mary, on the other hand, is too much in
- * loud music and sometimes misses the alarm altogether.
+ * Suppose you have a new fairly reliable burglar alarm at home but
+ * occasionally it responds to minor earthquakes. You also have two neighbors
+ * John and Mary, who have promised to call you at work when they hear the
+ * alarm. John always calls when he hears the alarm, but sometimes confuses the
+ * telephone ringing with the alarm and calls then, too. Mary, on the other
+ * hand, is too much in loud music and sometimes misses the alarm altogether.
  * 
  * So the bayesian network will be:
  * 
@@ -81,8 +81,9 @@ object Alarm {
 
   def main(args:Array[String]) = run
 
-  // let's try different methods of the probability
-  // a burglar happens if john and mary call:
+  // let's try different methods to find the probability a burglar happens if
+  // john and mary call:
+  //
   // P(B|John=true, Mary=true)
   def run = {
       println("P(B|John=true, Mary=true) : ")
@@ -92,8 +93,8 @@ object Alarm {
 
       // this direct method will automatically marginalize, filter and
       // normalize the probability + the number of needed multiplications 
-      // and space usage is much reduce in comparison to the joint probability
-      // solution.
+      // and space usage is much reduced in comparison to the 
+      // joint probability solution.
       println("do bayesian inference directly: " +
           normalizedProb[Burglary] { 
             val b = burglary
