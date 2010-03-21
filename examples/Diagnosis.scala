@@ -48,7 +48,7 @@ object Diagnosis {
   def pDisease = flip(0.001, Ill(), Healthy())
 
   // define P(T|I)
-  def pTest(d:Status) = flip(if (d == Ill()) PFalseNegative else PFalsePositive,
+  def pTest(d:Status) = flip(if (d == Ill()) PFalseNegative else 1.0 - PFalsePositive,
                              Negative(), Positive())
 
   // compute P(I|T=Positive):
