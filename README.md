@@ -41,7 +41,7 @@ TODO:
 Evaluation Strategies:
 ----------------------
 
-Instead of computing the probabilit distributions directly an unevaulated
+Instead of computing the probability distributions directly an unevaulated
 decision tree is build and only the root is returned.
 
 On that tree different evaluation strategies may be applied. Implemented so

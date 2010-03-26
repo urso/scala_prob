@@ -7,20 +7,30 @@ import scala.continuations.ControlContext._
 object EmbeddedProbability {
   import Utils._
 
-  abstract sealed class PStateTree[A] 
-
-  case class PChoice[A](d: () => Distribution[PStateTree[A]]) extends PStateTree[A]
-  case class PValue[A](value:A) extends PStateTree[A]
-
-  def reifyDistribution[A](p:PStateTree[A]) : Distribution[A] = p match {
-    case PValue(v)  => Probability.single[A](v)
-    case PChoice(d) => d().dep { m => reifyDistribution(m) }
+  abstract sealed class PStateTree[A] {
+    def reify : Distribution[A]
+    def pick : A
   }
 
-  def pickValue[A](p:PStateTree[A]) : A = p match {
-    case PValue(v) => v
-    case PChoice(d) => pickValue(d().pick._1)
+  case class PChoice[A](d: () => Distribution[PStateTree[A]]) extends PStateTree[A] {
+    def reify = d().dep { m => reifyDistribution(m) }
+    def pick  = d().pick._1.pick
   }
+
+  case class PValue[A](value:A) extends PStateTree[A] {
+    def reify = Probability.single[A](value)
+    def pick  = value
+  }
+
+  case class PNone[A]() extends PStateTree[Option[A]] {
+    def reify = Probability.single[Option[A]](None)
+    def pick  = None
+  }
+
+  val PNull = PNone()
+
+  def reifyDistribution[A](p:PStateTree[A]) : Distribution[A] = p.reify
+  def pickValue[A](p:PStateTree[A]) : A = p.pick
 
   def runProb_[A,C](ctx: => (A @cps[PStateTree[A],PStateTree[C]])) : PStateTree[C] =
       reset {
@@ -78,6 +88,10 @@ object EmbeddedProbability {
   {
     ctx =>
     collect(pred, runProbabilistic(ctx)).asInstanceOf[Distribution[A]]
+  }
+
+  def guard(b:Boolean) : Unit @cps[PStateTree[Any], PStateTree[Any]]  = if (!b) {
+      shift { k:(Unit => PStateTree[Any]) => PNull.asInstanceOf[PStateTree[Any]] }
   }
 
   def dist_[A,B](d:Iterable[(Double, A)]) : A @cps[PStateTree[B], PStateTree[B]] =
