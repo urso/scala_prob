@@ -102,7 +102,8 @@ object Alarm {
             val a = alarm(b,e)
 
             // do conditional filtering directly
-            if (john(a).s && mary(a).s) Some(b) else None
+            guard( john(a).s && mary(a).s )
+            Some(b)
           })
   }
 }

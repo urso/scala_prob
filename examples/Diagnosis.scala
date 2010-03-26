@@ -56,7 +56,8 @@ object Diagnosis {
     println("P(I|T=Positive) = ")
     println(normalizedProb[Status] {
           val i = pDisease
-          if ( Positive() == pTest(i) ) Some(i) else None
+          guard( Positive() == pTest(i) )
+          Some(i)
         })
   }
 

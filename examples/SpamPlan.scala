@@ -134,16 +134,15 @@ object SpamPlan {
     }
 
     def pHasWord(word:String, t:Classification) = {
-      val tmp = pWord(word, t)
-      if(tmp) Some(t) else None
+      guard(pWord(word, t))
+      Some(t)
     }
 
     // P(S | W == word) = < P(W == word | S) * P_prior(S)) >
     def pHasWord(word:String, prior:Distribution[Classification] = prob(pMsgType)) = {
       var t = dist(prior)
-      /*if (pWord(word, t)) Some(t) else None*/
-      var tmp = pWord(word, t)
-      if (tmp) Some(t) else None
+      guard(pWord(word, t))
+      Some(t)
     }
 
     // P(S | W1 == word1, W2 == word2, ... ) 
