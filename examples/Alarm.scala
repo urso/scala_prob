@@ -41,7 +41,7 @@
  * ----------------------------------------------------------------------------
  */
 object Alarm {
-  import probability.EmbeddedProbability._
+  import probability.probdsl._
 
   //first we want to encode the events
   case class Burglary(s:Boolean)
@@ -72,7 +72,7 @@ object Alarm {
   def mary(a:Alarm) = mkProb( if(a.s) 0.7 else 0.01, Mary )
 
   //compute the joint probability:
-  val p = prob[State] {
+  val p = normalizedProb[State] {
     val b = burglary
     val e = earthquake
     val a = alarm(b,e)
@@ -103,7 +103,7 @@ object Alarm {
 
             // do conditional filtering directly
             guard( john(a).s && mary(a).s )
-            Some(b)
+            b
           })
   }
 }

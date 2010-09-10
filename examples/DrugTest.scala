@@ -1,6 +1,6 @@
 
 object DrugTest {
-  import probability.EmbeddedProbability._
+  import probability.probdsl._
 
   sealed abstract class Status
   object User extends Status { override def toString = "User" }
@@ -13,7 +13,7 @@ object DrugTest {
   val PosIfUser = 0.99
   val PosIfClean = 0.01
 
-  val drugTest = prob[(Status, TestResult)] {
+  val drugTest = normalizedProb[(Status, TestResult)] {
     val s = flip(0.001, User, Clean)
     val t = flip(if (s == User) PosIfUser else PosIfClean, Positive, Negative)
     (s, t)

@@ -31,7 +31,7 @@
  *
  */
 object Diagnosis {
-  import probability.EmbeddedProbability._
+  import probability.probdsl._
 
   sealed abstract class Status
   case class Ill() extends Status
@@ -51,13 +51,13 @@ object Diagnosis {
   def pTest(d:Status) = flip(if (d == Ill()) PFalseNegative else 1.0 - PFalsePositive,
                              Negative(), Positive())
 
-  // compute P(I|T=Positive):
+  // compute P(I|T=Positive) using bayes rule:
   def run = {
     println("P(I|T=Positive) = ")
     println(normalizedProb[Status] {
           val i = pDisease
-          guard( Positive() == pTest(i) )
-          Some(i)
+          guard( Positive() == pTest(i) ) // equivalent to: if (Positive() == pTest(i)) single(i) else stop
+          i
         })
   }
 

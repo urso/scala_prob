@@ -15,7 +15,7 @@
  *
  */
 object MontyHall {
-  import probability.EmbeddedProbability._
+  import probability.probdsl._
 
   // first we want to encode our state.
   //
@@ -96,8 +96,8 @@ object MontyHall {
   
   // print some results
   def run = {
-    println("stay:\n" + prob { testWinner(stay(firstRound)) } + "\n")
-    println("switch:\n" + prob { testWinner(switchDoor(firstRound)) })
+    println("stay:\n" + normalizedProb { testWinner(stay(firstRound)) } + "\n")
+    println("switch:\n" + normalizedProb { testWinner(switchDoor(firstRound)) })
   }
 
 }

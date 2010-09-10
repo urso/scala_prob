@@ -95,7 +95,7 @@
  */
 object SpamPlan {
   import probability._
-  import probability.EmbeddedProbability._
+  import probdsl._
 
   sealed abstract class Classification
   case class Spam() extends Classification { override def toString = "Spam" }
@@ -103,7 +103,7 @@ object SpamPlan {
 
   val S = List(Spam(), Ham())
 
-  private val uniformClasses : Distribution[Classification] = prob { uniform(S) }
+  private val uniformClasses : Distribution[Classification] = normalizedProb[Classification] { uniform(S) }
 
   // trait every spam database must implement.
   // Will additionally mix in functions for computing probabilities
@@ -135,24 +135,16 @@ object SpamPlan {
 
     def pHasWord(word:String, t:Classification) = {
       guard(pWord(word, t))
-      Some(t)
+      t
     }
 
     // P(S | W == word) = < P(W == word | S) * P_prior(S)) >
-    def pHasWord(word:String, prior:Distribution[Classification] = prob(pMsgType)) = {
+    def pHasWord(word:String, prior:Distribution[Classification] = normalizedProb[Classification](pMsgType)) = {
       var t = dist(prior)
       guard(pWord(word, t))
-      Some(t)
+      t
     }
 
-    // P(S | W1 == word1, W2 == word2, ... ) 
-    //      = < P(S|W1) * P(S|W2) * ... >
-    def pHasWords(words:Iterator[String], prior:Distribution[Classification] = prob(pMsgType)) = {
-      val clazz:Option[Classification] = dist(prior.map { Some(_) })
-      words.foldLeft(clazz) { (optT, word) =>
-        optT flatMap (pHasWord(word, _))
-      }
-    }
     def characteristic(f: Distribution[Classification] => Distribution[Classification]) = {
       f(uniformClasses)
     }
@@ -225,22 +217,25 @@ object SpamPlan {
   def bayesianClassifier_(db:SpamFeaturesDB, 
                           words:Iterator[String], 
                           max:Int = 15,
-                          prior:Distribution[Classification] = null) = {
+                          prior:Distribution[Classification] = null) :
+                      (Distribution[Classification],Int) = {
     val prior_ : Distribution[Classification] = (if(prior == null)
-                                                   prob{db.pMsgType}
+                                                   normalizedProb{db.pMsgType}
                                                  else prior)
 
     val classifiers = db.findClassifiers(words,max).toList
-    val p = classifiers.map { c => prob[Option[Classification]] {
+    val p = classifiers.map { c => prob[Classification] {
       // compute < P_uni(S|Wi) * P_prior(S) > 
       // and lift into Option type for doing bayesian inference (invalid cases
       // are None and valid cases Some(class)
       val t = dist(prior_); 
-      if (t == dist(c)) Some(t) else None
-    }}.reduceLeft { (da, db) => prob[Option[Classification]] {
+      guard(t == dist(c))
+      t
+    }}.reduceLeft { (da, db) => normalizedProb[Option[Classification]] {
         // multiply all probabilities (naive bayesian part)
         val t = dist(da)
-        if (t == dist(db)) t else None
+        guard (t == dist(db)) 
+        t
     }}
 
     (Probability.normalize(p),  // normalize is always the last step when doing
