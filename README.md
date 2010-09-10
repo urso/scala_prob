@@ -2,35 +2,23 @@
 Introduction
 ------------
 
-sb_prob offers simple discrete probabilistic programming support using scala's
-new (experimental) delimited continuations support.
+sb_probdsl offers simple discrete probabilistic programming support using scala's
+new delimited continuations support.
 
 Installation alias preparing Playground
-----------------------------------
-It is Assumed you are using the official 'Scala 2.8.0 Beta 1' release.
-Unfortunately continuations are not included in this beta and you have to
-build it on your own:
+----------------------------------------
 
-- Follow continuations plugin install description found at
-  http://blog.richdougherty.com/2010/01/scala-280-beta-1-released.html.
+For compiling scala_probdsl you will need [sbt](http://code.google.com/p/simple-build-tool).
 
-- INFO: do 'svn up -r 20706' after checking out the plugin and before building
+Further library dependencies to install using "sbt publish-local" before
+compiling scala_probdsl:
 
-- Get the scala monadic probabilistic programming library from
-  http://github.com/urso/scala_mprob
+- [scala_mprob](http://github.com/urso/scala_mprob)
+- [embeddedmonads](http://github.com/urso/embeddedmonads)
 
-- build scala_mprob jar file with 'buildr package'
+compile scala_probdsl:
 
-- open Makefile and adjust path for the variables
-  "CPS_PLUGIN", "CPS_LIB" and "PROB_MONAD_LIB"
-
-- build library:
-
-    $ make build
-
-- (optionally) build examples:
-    
-    $ make
+    sbt compile
 
 Usage:
 ------
@@ -40,6 +28,7 @@ TODO:
 
 Evaluation Strategies:
 ----------------------
+**TODO: this section is a little outdated. better see source**
 
 Instead of computing the probability distributions directly an unevaulated
 decision tree is build and only the root is returned.
@@ -47,7 +36,6 @@ decision tree is build and only the root is returned.
 On that tree different evaluation strategies may be applied. Implemented so
 far are:
 
-    runProbabilistic[A] { ... } // returns unevaluated tree
 
     prob[A] { ... } // will evaluate tree to full decision tree
 
@@ -78,22 +66,23 @@ Some examples can be found in "examples/Test1.scala"
 Examples:
 ---------
 
-In order to use the examples in the scala REPL, you have to compile them first
-and then start the REPL using make:
+In order to use the examples in the scala REPL, you just need to load them 
+into the scala console startet using "sbt console" and call the example its
+"run" method:
 
-    $ make # compile examples
-    $ make repl # run scala repl with correct classpath
-
-In the REPL you can run the examples by typing "<example>.run" (well, you
-should know how to use the REPL).
-Try:
-
-    > Diagnosis.run
+    $ sbt console
+    scala> :load examples/MontyHall.scala
+    Loading examples/MontyHall.scala...
+    defined module MontyHall
+    scala> MontyHall.run
     ...
-    > MontyHall.run
-    ...
-    > SpamPlan.run
 
+    scala> :load examples/DrugTest.scala
+    Loading examples/DrugTest.scala...
+    defined module DrugTest
+
+    scala> DrugTest.run
+    ...
     
 Recommended example reading order:
 
